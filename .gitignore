@@ -1,0 +1,16 @@
+# Secrets / environment files
+.env
+.env.*
+!.env.example
+
+# Local secrets
+secrets/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Editor / OS
+.vscode/
+.DS_Store
