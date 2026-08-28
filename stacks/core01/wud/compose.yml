@@ -1,0 +1,21 @@
+services:
+  wud:
+    image: getwud/wud:8.3.1
+    container_name: wud
+    restart: unless-stopped
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /srv/appdata/wud:/store
+
+    environment:
+      TZ: Europe/Berlin
+      WUD_WATCHER_LOCAL_WATCHBYDEFAULT: "true"
+      WUD_WATCHER_LOCAL_CRON: "0 * * * *"
+
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    external: true
