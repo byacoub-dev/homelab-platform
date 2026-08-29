@@ -1,0 +1,5 @@
+- targets:
+    - "192.168.178.10:9100"
+  labels:
+    host: "core01"
+    role: "docker-host"
