@@ -4,18 +4,14 @@ services:
     container_name: wud
     restart: unless-stopped
 
+    ports:
+      - "${WUD_BIND_ADDRESS}:${WUD_PORT}:3000"
+
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /srv/appdata/wud:/store
+      - "${WUD_DATA_PATH}:/store"
 
     environment:
-      TZ: Europe/Berlin
+      TZ: "${TZ}"
       WUD_WATCHER_LOCAL_WATCHBYDEFAULT: "true"
       WUD_WATCHER_LOCAL_CRON: "0 * * * *"
-
-    networks:
-      - proxy
-
-networks:
-  proxy:
-    external: true
