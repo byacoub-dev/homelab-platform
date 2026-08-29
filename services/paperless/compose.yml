@@ -1,0 +1,52 @@
+services:
+  broker:
+    image: redis:8
+    container_name: paperless-broker
+    restart: unless-stopped
+
+  db:
+    image: postgres:17
+    container_name: paperless-db
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: "${PAPERLESS_DB_NAME}"
+      POSTGRES_USER: "${PAPERLESS_DB_USER}"
+      POSTGRES_PASSWORD: "${PAPERLESS_DB_PASSWORD}"
+
+    volumes:
+      - "${PAPERLESS_DATA_PATH}/pgdata:/var/lib/postgresql/data"
+
+  webserver:
+    image: ghcr.io/paperless-ngx/paperless-ngx:3.0.5
+    container_name: paperless
+    restart: unless-stopped
+
+    depends_on:
+      - db
+      - broker
+
+    env_file:
+      - .env
+
+    environment:
+      PAPERLESS_REDIS: redis://broker:6379
+      PAPERLESS_DBHOST: db
+      PAPERLESS_URL: "${PAPERLESS_URL}"
+
+    volumes:
+      - "${PAPERLESS_DATA_PATH}/data:/usr/src/paperless/data"
+      - "${PAPERLESS_DATA_PATH}/media:/usr/src/paperless/media"
+      - "${PAPERLESS_DATA_PATH}/export:/usr/src/paperless/export"
+      - "${PAPERLESS_DATA_PATH}/consume:/usr/src/paperless/consume"
+
+    expose:
+      - "8000"
+
+    networks:
+      - default
+      - proxy
+
+networks:
+  proxy:
+    external: true

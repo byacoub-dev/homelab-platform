@@ -1,0 +1,20 @@
+services:
+  adguard:
+    image: adguard/adguardhome:v0.107.78
+    container_name: adguard
+    restart: unless-stopped
+
+    ports:
+      - "${ADGUARD_BIND_ADDRESS}:53:53/tcp"
+      - "${ADGUARD_BIND_ADDRESS}:53:53/udp"
+
+    volumes:
+      - "${ADGUARD_DATA_PATH}/work:/opt/adguardhome/work"
+      - "${ADGUARD_DATA_PATH}/conf:/opt/adguardhome/conf"
+
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    external: true
