@@ -1,0 +1,37 @@
+# Example Caddy configuration for internal homelab services.
+# Replace hostnames and backend addresses to match your environment.
+
+ntfy.home.arpa {
+    tls internal
+    reverse_proxy ntfy:80
+}
+
+vault.home.arpa {
+    tls internal
+    reverse_proxy vaultwarden:80
+}
+
+paperless.home.arpa {
+    tls internal
+    reverse_proxy paperless:8000
+}
+
+adguard.home.arpa {
+    tls internal
+    reverse_proxy adguard:80
+}
+
+updates.home.arpa {
+    tls internal
+    reverse_proxy 192.168.1.10:3000
+}
+
+prometheus.home.arpa {
+    tls internal
+    reverse_proxy 192.168.1.10:9090
+}
+
+grafana.home.arpa {
+    tls internal
+    reverse_proxy 192.168.1.10:3001
+}
