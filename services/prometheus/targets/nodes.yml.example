@@ -1,0 +1,11 @@
+# Example Prometheus target definition for Node Exporter.
+# Replace the address and labels with values matching your environment.
+
+- targets:
+    - "192.168.1.10:9100"
+  labels:
+    # Logical hostname used in Prometheus and Grafana.
+    host: "docker-host-01"
+
+    # Optional role label for grouping or filtering hosts.
+    role: "docker-host"

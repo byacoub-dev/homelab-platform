@@ -14,3 +14,5 @@ __pycache__/
 # Editor / OS
 .vscode/
 .DS_Store
+services/prometheus/targets/nodes.yml
+services/caddy/Caddyfile
