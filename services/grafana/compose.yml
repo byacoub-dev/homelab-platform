@@ -1,0 +1,15 @@
+services:
+  grafana:
+    image: grafana/grafana:12.2.0
+    container_name: grafana
+    restart: unless-stopped
+
+    volumes:
+      - /srv/appdata/grafana:/var/lib/grafana
+
+    ports:
+      - "${GRAFANA_BIND_IP}:3001:3000"
+
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
