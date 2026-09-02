@@ -1,0 +1,36 @@
+- Infrastruktur:
+    - AdGuard Home:
+        icon: adguard-home
+        href: https://adguard.home.arpa
+        description: DNS & DHCP
+
+    - Grafana:
+        icon: grafana
+        href: https://grafana.home.arpa
+        description: Monitoring & Dashboards
+
+    - Prometheus:
+        icon: prometheus
+        href: https://prometheus.home.arpa
+        description: Metrics & Monitoring
+
+    - WUD:
+        icon: whats-up-docker
+        href: https://updates.home.arpa
+        description: Container Updates
+
+- Anwendungen:
+    - Paperless-ngx:
+        icon: paperless-ngx
+        href: https://paperless.home.arpa
+        description: Dokumentenverwaltung
+
+    - Vaultwarden:
+        icon: vaultwarden
+        href: https://vault.home.arpa
+        description: Passwortverwaltung
+
+    - ntfy:
+        icon: ntfy
+        href: https://ntfy.home.arpa
+        description: Benachrichtigungen
