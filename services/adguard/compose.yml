@@ -7,6 +7,7 @@ services:
     ports:
       - "${ADGUARD_BIND_ADDRESS}:53:53/tcp"
       - "${ADGUARD_BIND_ADDRESS}:53:53/udp"
+      - "${ADGUARD_BIND_ADDRESS}:8081:80/tcp"
 
     volumes:
       - "${ADGUARD_DATA_PATH}/work:/opt/adguardhome/work"
