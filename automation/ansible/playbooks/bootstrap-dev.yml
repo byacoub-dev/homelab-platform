@@ -1,0 +1,9 @@
+---
+- name: Bootstrap development server
+  hosts: development
+  become: true
+  gather_facts: true
+
+  roles:
+    - common
+    - docker

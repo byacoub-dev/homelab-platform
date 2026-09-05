@@ -1,0 +1,7 @@
+---
+- name: Deploy WUD
+  hosts: development
+  become: true
+
+  roles:
+    - deploy_wud

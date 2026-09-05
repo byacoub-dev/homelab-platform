@@ -1,0 +1,37 @@
+---
+- name: Create WUD application data directory
+  ansible.builtin.file:
+    path: /srv/appdata/wud
+    state: directory
+    owner: benjamen
+    group: benjamen
+    mode: "0755"
+
+- name: Create WUD deployment directory
+  ansible.builtin.file:
+    path: /srv/stacks/wud
+    state: directory
+    owner: benjamen
+    group: benjamen
+    mode: "0755"
+
+- name: Deploy WUD Compose file
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../../services/wud/compose.yml"
+    dest: /srv/stacks/wud/compose.yml
+    owner: benjamen
+    group: benjamen
+    mode: "0644"
+
+- name: Deploy WUD environment file
+  ansible.builtin.template:
+    src: wud.env.j2
+    dest: /srv/stacks/wud/.env
+    owner: benjamen
+    group: benjamen
+    mode: "0640"
+
+- name: Deploy WUD with Docker Compose
+  community.docker.docker_compose_v2:
+    project_src: /srv/stacks/wud
+    state: present
