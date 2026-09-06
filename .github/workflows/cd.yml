@@ -1,0 +1,33 @@
+---
+name: CD
+
+'on':
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  connectivity-test:
+    name: Test deployment connection
+    runs-on:
+      - self-hosted
+      - homelab
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Ansible collections
+        run: |
+          ansible-galaxy collection install \
+            -r automation/ansible/collections/requirements.yml
+
+      - name: Test Ansible connection to dev01
+        run: |
+          ansible all \
+            -i "$HOME/ansible/hosts.yml" \
+            -m ping
