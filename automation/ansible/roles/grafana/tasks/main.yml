@@ -1,0 +1,43 @@
+---
+- name: Create Grafana stack directory
+  ansible.builtin.file:
+    path: /srv/stacks/grafana
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+
+- name: Check whether Grafana database already exists
+  ansible.builtin.stat:
+    path: /srv/appdata/grafana/grafana.db
+  register: grafana_db
+
+- name: Restore Grafana appdata from pre-Proxmox backup
+  ansible.builtin.copy:
+    src: /mnt/core01-backups/pre-proxmox/appdata/grafana/
+    dest: /srv/appdata/grafana/
+    remote_src: true
+    owner: "472"
+    group: "472"
+  when: not grafana_db.stat.exists
+
+- name: Copy Grafana compose file
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../../services/grafana/compose.yml"
+    dest: /srv/stacks/grafana/compose.yml
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+
+- name: Create Grafana environment file
+  ansible.builtin.template:
+    src: grafana.env.j2
+    dest: /srv/stacks/grafana/.env
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0600"
+
+- name: Deploy Grafana
+  community.docker.docker_compose_v2:
+    project_src: /srv/stacks/grafana
+    state: present

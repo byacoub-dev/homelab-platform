@@ -16,3 +16,7 @@ __pycache__/
 .DS_Store
 services/prometheus/targets/nodes.yml
 services/caddy/Caddyfile
+
+# Local Ansible inventory and environment-specific variables
+automation/ansible/inventory/hosts.yml
+automation/ansible/group_vars/development.yml

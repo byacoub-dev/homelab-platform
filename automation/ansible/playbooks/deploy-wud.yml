@@ -4,4 +4,4 @@
   become: true
 
   roles:
-    - deploy_wud
+    - wud

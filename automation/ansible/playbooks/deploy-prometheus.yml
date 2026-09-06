@@ -1,0 +1,7 @@
+---
+- name: Deploy Prometheus to development hosts
+  hosts: development
+  become: true
+
+  roles:
+    - prometheus
