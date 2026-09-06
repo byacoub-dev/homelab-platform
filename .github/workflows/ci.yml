@@ -1,0 +1,78 @@
+---
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate repository
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install validation tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible-core yamllint
+
+      - name: Install Ansible collections
+        working-directory: automation/ansible
+        run: |
+          ansible-galaxy collection install \
+            -r collections/requirements.yml
+
+      - name: Validate YAML
+        run: |
+          yamllint \
+            automation/ansible \
+            services
+
+      - name: Validate Ansible playbooks
+        working-directory: automation/ansible
+        run: |
+          cp inventory/hosts.yml.example inventory/hosts-ci.yml
+
+            for playbook in playbooks/*.yml; do
+            echo "Checking ${playbook}"
+             ansible-playbook "${playbook}" \
+               --syntax-check \
+               -i inventory/hosts-ci.yml
+                 done
+
+                 rm inventory/hosts-ci.yml
+
+      - name: Validate Docker Compose files
+        run: |
+          set -e
+
+          while IFS= read -r compose_file; do
+            service_dir="$(dirname "${compose_file}")"
+
+            echo "Checking ${compose_file}"
+
+            if [ -f "${service_dir}/.env.example" ]; then
+              cp "${service_dir}/.env.example" "${service_dir}/.env"
+            fi
+
+            docker compose \
+              -f "${compose_file}" \
+              config --quiet
+
+            rm -f "${service_dir}/.env"
+          done < <(find services -name 'compose.yml' -type f | sort)
