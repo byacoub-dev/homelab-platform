@@ -1,0 +1,31 @@
+---
+- name: Allow SSH
+  community.general.ufw:
+    rule: allow
+    name: OpenSSH
+
+- name: Allow reverse proxy to access WUD
+  community.general.ufw:
+    rule: allow
+    src: "{{ reverse_proxy_ip }}"
+    port: "3000"
+    proto: tcp
+
+- name: Allow reverse proxy to access Grafana
+  community.general.ufw:
+    rule: allow
+    src: "{{ reverse_proxy_ip }}"
+    port: "3001"
+    proto: tcp
+
+- name: Allow reverse proxy to access Prometheus
+  community.general.ufw:
+    rule: allow
+    src: "{{ reverse_proxy_ip }}"
+    port: "9090"
+    proto: tcp
+
+- name: Enable UFW
+  community.general.ufw:
+    state: enabled
+    policy: deny

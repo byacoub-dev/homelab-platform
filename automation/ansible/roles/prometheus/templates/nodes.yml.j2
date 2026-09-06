@@ -1,0 +1,5 @@
+---
+- targets:
+    - "{{ ansible_facts['default_ipv4']['address'] }}:9100"
+  labels:
+    host: "{{ inventory_hostname }}"

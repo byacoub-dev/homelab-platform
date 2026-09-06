@@ -1,0 +1,50 @@
+---
+- name: Create Prometheus stack directory
+  ansible.builtin.file:
+    path: /srv/stacks/prometheus
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+
+- name: Create Prometheus appdata directory
+  ansible.builtin.file:
+    path: /srv/appdata/prometheus
+    state: directory
+    owner: "65534"
+    group: "65534"
+    mode: "0755"
+
+- name: Copy Prometheus service files
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+  loop:
+    - src: "{{ playbook_dir }}/../../../services/prometheus/compose.yml"
+      dest: /srv/stacks/prometheus/compose.yml
+    - src: "{{ playbook_dir }}/../../../services/prometheus/prometheus.yml"
+      dest: /srv/stacks/prometheus/prometheus.yml
+
+- name: Create Prometheus targets directory
+  ansible.builtin.file:
+    path: /srv/stacks/prometheus/targets
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+
+- name: Create Prometheus Node Exporter targets
+  ansible.builtin.template:
+    src: nodes.yml.j2
+    dest: /srv/stacks/prometheus/targets/nodes.yml
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+
+- name: Deploy Prometheus
+  community.docker.docker_compose_v2:
+    project_src: /srv/stacks/prometheus
+    state: present

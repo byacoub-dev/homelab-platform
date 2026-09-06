@@ -1,0 +1,21 @@
+---
+- name: Create Node Exporter stack directory
+  ansible.builtin.file:
+    path: /srv/stacks/node-exporter
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+
+- name: Copy Node Exporter compose file
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../../services/node-exporter/compose.yml"
+    dest: /srv/stacks/node-exporter/compose.yml
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+
+- name: Deploy Node Exporter
+  community.docker.docker_compose_v2:
+    project_src: /srv/stacks/node-exporter
+    state: present

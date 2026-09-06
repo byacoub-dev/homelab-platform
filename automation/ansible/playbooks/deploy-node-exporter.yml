@@ -1,0 +1,7 @@
+---
+- name: Deploy Node Exporter to development hosts
+  hosts: development
+  become: true
+
+  roles:
+    - node_exporter
