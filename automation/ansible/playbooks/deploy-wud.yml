@@ -3,5 +3,16 @@
   hosts: development
   become: true
 
+  vars:
+    wud_admin_user: "{{ lookup('ansible.builtin.env', 'WUD_ADMIN_USER') | default('admin', true) }}"
+    wud_admin_password: "{{ lookup('ansible.builtin.env', 'WUD_ADMIN_PASSWORD') }}"
+
+  pre_tasks:
+    - name: Ensure WUD admin password is provided
+      ansible.builtin.assert:
+        that:
+          - wud_admin_password | length > 0
+        fail_msg: "WUD_ADMIN_PASSWORD must be set in the environment."
+
   roles:
     - wud
