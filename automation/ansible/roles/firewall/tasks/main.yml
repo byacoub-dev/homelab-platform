@@ -25,6 +25,13 @@
     port: "9090"
     proto: tcp
 
+- name: Allow monitoring network to access Node Exporter
+  community.general.ufw:
+    rule: allow
+    src: "{{ monitoring_network_subnet}}"
+    port: "9100"
+    proto: tcp
+
 - name: Enable UFW
   community.general.ufw:
     state: enabled

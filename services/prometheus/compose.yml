@@ -14,3 +14,11 @@ services:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./targets:/etc/prometheus/targets:ro
       - /srv/appdata/prometheus:/prometheus
+
+    networks:
+      - monitoring
+      - default
+
+networks:
+  monitoring:
+    external: true

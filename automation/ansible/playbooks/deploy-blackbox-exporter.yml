@@ -1,0 +1,7 @@
+---
+- name: Deploy Blackbox Exporter to development hosts
+  hosts: development
+  become: true
+
+  roles:
+    - blackbox_exporter

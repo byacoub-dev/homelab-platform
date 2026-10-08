@@ -1,0 +1,19 @@
+services:
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.27.0
+    container_name: blackbox-exporter
+    restart: unless-stopped
+
+    volumes:
+      - ./blackbox.yml:/etc/blackbox_exporter/config.yml:ro
+      - ./certs/caddy-root.crt:/etc/blackbox/certs/caddy-root.crt:ro
+
+    command:
+      - --config.file=/etc/blackbox_exporter/config.yml
+
+    networks:
+      - monitoring
+
+networks:
+  monitoring:
+    external: true
