@@ -19,4 +19,4 @@ services/caddy/Caddyfile
 
 # Local Ansible inventory and environment-specific variables
 automation/ansible/inventory/hosts.yml
-automation/ansible/group_vars/development.yml
+automation/ansible/inventory/group_vars/development.yml

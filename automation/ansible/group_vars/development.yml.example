@@ -1,3 +1,0 @@
----
-# Address of the reverse proxy that may access exposed services.
-reverse_proxy_ip: "192.168.1.10"

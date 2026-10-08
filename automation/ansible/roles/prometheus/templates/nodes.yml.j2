@@ -1,5 +1,9 @@
----
+{% for target in prometheus_node_targets %}
 - targets:
-    - "{{ ansible_facts['default_ipv4']['address'] }}:9100"
+    - "{{ target.address }}"
   labels:
-    host: "{{ inventory_hostname }}"
+    host: {{ target.host }}
+{% if not loop.last %}
+
+{% endif %}
+{% endfor %}

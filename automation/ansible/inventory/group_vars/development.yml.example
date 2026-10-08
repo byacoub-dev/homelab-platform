@@ -1,0 +1,11 @@
+---
+# Address of the reverse proxy that may access exposed services.
+reverse_proxy_ip: "192.168.1.10"
+
+# Example targets monitored by Prometheus Node Exporter.
+# Override these values in the local development.yml.
+prometheus_node_targets:
+  - address: "host.docker.internal:9100"
+    host: "dev01"
+  - address: "192.168.1.20:9100"
+    host: "raspberrypi"
