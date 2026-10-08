@@ -22,3 +22,7 @@ services/grafana/dashboards/*.json text eol=lf linguist-generated
 *.jpeg binary
 *.webp binary
 *.pdf binary
+
+# Explicit GitHub Linguist classification
+*.yml linguist-language=YAML
+*.yaml linguist-language=YAML
