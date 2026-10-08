@@ -1,0 +1,6 @@
+{% for target in prometheus_http_targets %}
+- targets:
+    - "{{ target.url }}"
+  labels:
+    service: "{{ target.service }}"
+{% endfor %}

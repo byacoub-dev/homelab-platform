@@ -6,6 +6,9 @@
 # Local secrets
 secrets/
 
+# Local internal CA certificates
+automation/ansible/certs/
+
 # Python
 __pycache__/
 *.pyc

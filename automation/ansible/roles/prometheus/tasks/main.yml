@@ -15,18 +15,13 @@
     group: "65534"
     mode: "0755"
 
-- name: Copy Prometheus service files
+- name: Copy Prometheus Compose file
   ansible.builtin.copy:
-    src: "{{ item.src }}"
-    dest: "{{ item.dest }}"
+    src: "{{ playbook_dir }}/../../../services/prometheus/compose.yml"
+    dest: /srv/stacks/prometheus/compose.yml
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0644"
-  loop:
-    - src: "{{ playbook_dir }}/../../../services/prometheus/compose.yml"
-      dest: /srv/stacks/prometheus/compose.yml
-    - src: "{{ playbook_dir }}/../../../services/prometheus/prometheus.yml"
-      dest: /srv/stacks/prometheus/prometheus.yml
 
 - name: Create Prometheus targets directory
   ansible.builtin.file:
@@ -43,6 +38,39 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0644"
+
+- name: Create Prometheus HTTP targets
+  ansible.builtin.template:
+    src: http.yml.j2
+    dest: /srv/stacks/prometheus/targets/http.yml
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+
+- name: Deploy validated Prometheus configuration
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../../services/prometheus/prometheus.yml"
+    dest: /srv/stacks/prometheus/prometheus.yml
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+    validate: >-
+      docker run --rm
+      --network none
+      --mount type=bind,src=%s,dst=/etc/prometheus/prometheus.yml,readonly
+      --mount type=bind,src=/srv/stacks/prometheus/targets,dst=/etc/prometheus/targets,readonly
+      --entrypoint /bin/promtool
+      prom/prometheus:v3.14.0
+      check config /etc/prometheus/prometheus.yml
+  notify: Reload Prometheus configuration
+
+- name: Ensure shared monitoring network exists
+  community.docker.docker_network:
+    name: monitoring
+    driver: bridge
+    ipam_config:
+      - subnet: "{{ monitoring_network_subnet }}"
+    state: present
 
 - name: Deploy Prometheus
   community.docker.docker_compose_v2:

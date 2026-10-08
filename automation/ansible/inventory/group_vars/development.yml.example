@@ -9,3 +9,15 @@ prometheus_node_targets:
     host: "dev01"
   - address: "192.168.1.20:9100"
     host: "raspberrypi"
+
+# Example HTTP endpoints monitored through Blackbox Exporter.
+# Override these values in the local development.yml.
+prometheus_http_targets:
+  - url: "https://app.example.com"
+    service: "example-app"
+
+  - url: "https://status.example.com"
+    service: "example-status"
+
+# Dedicated Docker network for monitoring services.
+monitoring_network_subnet: "172.30.10.0/24"
