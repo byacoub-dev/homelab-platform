@@ -26,6 +26,17 @@
           username: "{{HOMEPAGE_VAR_ADGUARD_USER}}"
           password: "{{HOMEPAGE_VAR_ADGUARD_PASS}}"
 
+    - Proxmox:
+        icon: proxmox
+        href: https://prox10.home.arpa
+        description: Virtualisierung · core01
+        widget:
+          type: proxmox
+          url: https://prox10.home.arpa
+          username: "{{HOMEPAGE_VAR_PROXMOX_TOKEN_ID}}"
+          password: "{{HOMEPAGE_VAR_PROXMOX_TOKEN_SECRET}}"
+          fields: ["vms", "lxc", "resources.cpu", "resources.mem"]
+
     - ntfy:
         icon: ntfy
         href: https://ntfy.home.arpa
