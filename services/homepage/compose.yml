@@ -9,6 +9,8 @@ services:
       NODE_EXTRA_CA_CERTS: /etc/ssl/certs/caddy-root.crt
       HOMEPAGE_VAR_ADGUARD_USER: ${HOMEPAGE_VAR_ADGUARD_USER}
       HOMEPAGE_VAR_ADGUARD_PASS: ${HOMEPAGE_VAR_ADGUARD_PASS}
+      HOMEPAGE_VAR_WUD_USER: ${HOMEPAGE_VAR_WUD_USER}
+      HOMEPAGE_VAR_WUD_PASS: ${HOMEPAGE_VAR_WUD_PASS}
 
     volumes:
       - /srv/appdata/homepage/config:/app/config
