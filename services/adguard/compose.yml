@@ -7,6 +7,8 @@ services:
     ports:
       - "${ADGUARD_BIND_ADDRESS}:53:53/tcp"
       - "${ADGUARD_BIND_ADDRESS}:53:53/udp"
+      - "[${ADGUARD_BIND_ADDRESS_V6}]:53:53/tcp"
+      - "[${ADGUARD_BIND_ADDRESS_V6}]:53:53/udp"
       - "${ADGUARD_BIND_ADDRESS}:8081:80/tcp"
 
     volumes:
