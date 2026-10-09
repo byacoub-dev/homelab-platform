@@ -4,6 +4,11 @@
         icon: paperless-ngx
         href: https://paperless.home.arpa
         description: Dokumentenverwaltung
+        widget:
+          type: paperlessngx
+          url: https://paperless.home.arpa
+          key: "{{HOMEPAGE_VAR_PAPERLESS_TOKEN}}"
+          fields: ["total", "inbox"]
 
     - Vaultwarden:
         icon: vaultwarden
