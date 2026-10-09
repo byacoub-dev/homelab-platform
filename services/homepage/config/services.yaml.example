@@ -41,3 +41,9 @@
         icon: whats-up-docker
         href: https://updates.home.arpa
         description: Container-Updates
+        widget:
+          type: whatsupdocker
+          url: https://updates.home.arpa
+          username: "{{HOMEPAGE_VAR_WUD_USER}}"
+          password: "{{HOMEPAGE_VAR_WUD_PASS}}"
+          fields: ["monitoring", "updates"]
