@@ -6,6 +6,8 @@ services:
 
     environment:
       HOMEPAGE_ALLOWED_HOSTS: homepage.home.arpa
+      HOMEPAGE_VAR_ADGUARD_USER: ${HOMEPAGE_VAR_ADGUARD_USER}
+      HOMEPAGE_VAR_ADGUARD_PASS: ${HOMEPAGE_VAR_ADGUARD_PASS}
 
     volumes:
       - /srv/appdata/homepage/config:/app/config
