@@ -6,7 +6,9 @@ The project is not intended to be a collection of self-hosted applications. Its 
 
 The environment is built around Docker Compose, Ansible, GitHub Actions, Proxmox, Prometheus and Grafana. Stable infrastructure services are separated from development and automation workloads, while the public repository contains only reusable configuration and generic examples.
 
-> **Current focus:** Building a controlled CI/CD path from GitHub to the development environment. Pull requests are validated on GitHub-hosted runners, while deployments after a merge to `main` use a dedicated and isolated self-hosted runner inside the homelab.
+> **Documented state: 09 October 2026.** DevOps and platform engineering remain the main focus: reusable Docker Compose definitions, Ansible automation, reviewed Git changes, CI validation and recovery. Monitoring is now operational on `dev01`, including host metrics, eight internal HTTPS checks and Grafana Service Health V3. The isolated CD path is verified for connectivity only; automated service deployment through that workflow is not yet confirmed.
+
+This overview is based on the user's `HOMELAB.md` dated 09 October 2026 and the current repository configuration. Runtime observations describe that documented state, not a live infrastructure audit.
 
 ---
 
@@ -58,7 +60,8 @@ The current environment combines a small Proxmox virtualization platform with a 
                                     Development Target
                                             │
                                             ▼
-                                      Docker Services
+                                  Ansible ping verified
+                                  (no CD deployment yet)
 
 
                   Internal Homelab Network
@@ -77,6 +80,16 @@ The current environment combines a small Proxmox virtualization platform with a 
 The physical Proxmox host remains intentionally lightweight. Development, operations and CI/CD workloads are placed in separate virtual machines.
 
 The Raspberry Pi continues to host stable 24/7 infrastructure services such as DNS, reverse proxy and selected applications.
+
+| Host | Current responsibility |
+|---|---|
+| `core01` | Proxmox hypervisor; application workloads run in VMs |
+| `dev01` | Docker development/deployment target, WUD and monitoring stack |
+| `ops01` | Manual Ansible control node and operations |
+| `runner01` | Isolated self-hosted runner; CD connectivity verification |
+| Raspberry Pi | AdGuard, Caddy, Homepage, Paperless-ngx, Vaultwarden, ntfy and Node Exporter |
+
+Immich is outside the current intended operating state. Kubernetes/k3s has not been started.
 
 ---
 
@@ -120,7 +133,7 @@ The CI workflow does not require access to the private homelab network.
 
 ### Continuous Deployment
 
-Deployment jobs use a dedicated self-hosted GitHub Actions runner named `runner01`.
+The CD connectivity job uses a dedicated self-hosted GitHub Actions runner named `runner01`.
 
 The runner is hosted in its own virtual machine and is deliberately separated from the normal Ansible control node.
 
@@ -152,7 +165,7 @@ Self-hosted Runner
 
 The complete transport path has been successfully tested.
 
-The next step is to replace the connectivity-only test with the first controlled deployment of a low-risk service such as Node Exporter.
+The current [CD workflow](.github/workflows/cd.yml) installs collections and runs `ansible all -m ping` against the runner-local inventory. It does not invoke a deployment playbook. Node Exporter already runs on `dev01`, but its deployment through CD is not confirmed. A future controlled deployment must be added explicitly and verified after execution.
 
 Production services on the Raspberry Pi are deliberately excluded from automatic deployment at this stage.
 
@@ -217,18 +230,20 @@ automation/ansible/
 ├── collections/
 │   └── requirements.yml
 ├── inventory/
-│   └── hosts.yml.example
-├── group_vars/
-│   └── development.yml.example
+│   ├── hosts.yml.example
+│   └── group_vars/
+│       └── development.yml.example
 ├── playbooks/
 │   ├── bootstrap.yml
 │   ├── configure-firewall.yml
+│   ├── deploy-blackbox-exporter.yml
 │   ├── deploy-grafana.yml
 │   ├── deploy-node-exporter.yml
 │   ├── deploy-prometheus.yml
 │   ├── deploy-wud.yml
 │   └── system-info.yml
 └── roles/
+    ├── blackbox_exporter/
     ├── common/
     ├── docker/
     ├── firewall/
@@ -247,6 +262,7 @@ The current roles cover areas including:
 - firewall configuration,
 - Node Exporter,
 - Prometheus,
+- Blackbox Exporter,
 - Grafana,
 - WUD.
 
@@ -271,7 +287,7 @@ inventory/
 The same principle applies to environment-specific variables.
 
 ```text
-group_vars/
+inventory/group_vars/
 ├── development.yml          # local, ignored
 └── development.yml.example  # public example
 ```
@@ -289,6 +305,7 @@ Services are organized independently from the hosts on which they run.
 ```text
 services/
 ├── adguard/
+├── blackbox-exporter/
 ├── caddy/
 ├── grafana/
 ├── homepage/
@@ -376,38 +393,67 @@ This allows services to be accessed using readable internal names instead of exp
 
 ## Monitoring
 
-The monitoring stack is based on:
-
-- Prometheus,
-- Grafana,
-- Node Exporter.
-
-The previously working monitoring architecture followed:
+Monitoring supports operating and troubleshooting the platform. The migration to `dev01` is complete in the documented state.
 
 ```text
-Node Exporter
-      │
-      ▼
- Prometheus
-      │
-      ▼
-   Grafana
+Node Exporter on dev01 and Raspberry Pi ──► Prometheus ──► Grafana
+                                               ▲
+                                               │ probe metrics
+                                        Blackbox Exporter
+                                               │
+                                  internal DNS → Caddy → HTTPS services
 ```
 
-Prometheus uses file-based service discovery for host-specific targets. Real target definitions remain local, while example files document the expected structure.
+### Host and service checks
 
-Monitoring services are currently being moved into the new Proxmox-based development environment.
+Node Exporter provides host metrics for `dev01` and the Raspberry Pi. Prometheus collects them through file-based discovery; the documented API check confirmed both targets with `up=1`.
 
-Node Exporter is planned as the first service to be deployed through the new CD pipeline.
+Blackbox Exporter adds HTTP checks through the actual internal HTTPS access path. The `blackbox-http` job covers eight services:
 
-Further planned observability improvements include:
+| Service | Checked access path |
+|---|---|
+| Paperless-ngx | Internal HTTPS through Caddy |
+| Vaultwarden | Internal HTTPS through Caddy |
+| AdGuard web interface | Internal HTTPS through Caddy; does not test DNS service health |
+| Homepage | Internal HTTPS through Caddy |
+| Grafana | Internal HTTPS through Caddy |
+| Prometheus | Internal HTTPS through Caddy |
+| WUD | Internal HTTPS through Caddy |
+| ntfy | Internal HTTPS through Caddy |
 
-- additional Node Exporter targets,
-- container metrics,
-- Alertmanager,
-- ntfy notifications,
-- meaningful alert thresholds,
-- filesystem and disk I/O visibility.
+All eight probes were documented with `probe_success=1` and HTTP 200 on 09 October 2026. This is a snapshot, not a guarantee of continuous availability or a test of every application function.
+
+The `http_2xx` module follows redirects and verifies TLS using a read-only mounted Caddy root certificate. Blackbox Exporter is reached as `blackbox-exporter:9115` on the shared Docker `monitoring` network; it publishes no host port. Real HTTP targets are generated by Ansible from local variables into `targets/http.yml`; host targets remain separate in `targets/nodes.yml`.
+
+### Grafana dashboards
+
+**Host Overview** provides selectable Node Exporter host metrics.
+
+**Homelab | Service Health V3** is the documented, imported and visually checked service dashboard. It includes:
+
+- UP/DOWN counts, current reachability and observed 24-hour/7-day probe success ratios,
+- a service table with HTTP status, HTTPS use and probe duration,
+- duration time series and per-service status history,
+- TLS certificate lifetime in hours and the five slowest services over 15 minutes,
+- a dynamic `service` filter, refresh and measurement notes.
+
+A [Service Health dashboard JSON](services/grafana/dashboards/service-health.json) is already present in the current repository. Its panels match the documented V3 feature set. The local documentation still lists versioning as pending; the exact identity with the user's exported V3 file and automated provisioning are not confirmed here.
+
+Probe duration measures the complete check from the monitoring network, not only application processing time. Historical ratios use observed probes; missing data and time before collection began do not establish full-window availability or an SLA. Caddy's short-lived internal certificates normally renew automatically, so a low remaining lifetime alone does not prove a fault.
+
+### Configuration validation and remaining verification
+
+The Prometheus Ansible role validates configuration with `promtool` before replacing it. The documented negative test rejected invalid configuration with `changed=false`. A HUP reload handler exists in the repository, but execution after a real valid configuration change is still unconfirmed.
+
+Grafana Alerting with ntfy is the next planned step, including a controlled outage and recovery test. Alert delivery, container metrics and monitoring of the Proxmox host are not yet claimed as implemented.
+
+---
+
+## Screenshots
+
+Two real screenshots are planned: Homepage as the service entry point and Grafana Service Health V3 as the operational view. No screenshot files were available with the supplied documents, so no images are embedded yet.
+
+The [screenshot asset guide](docs/assets/screenshots/README.md) defines filenames, captions and publication checks. Add only user-provided captures of the actual environment; review visible addresses, user data and credentials before publishing.
 
 ---
 
@@ -446,18 +492,20 @@ homelab-platform/
 ├── automation/
 │   └── ansible/
 │       ├── collections/
-│       ├── group_vars/
-│       ├── inventory/
+│       ├── inventory/          # includes group_vars/
 │       ├── playbooks/
 │       └── roles/
 │
 ├── docs/
-│   └── architecture.md
+│   ├── architecture.md
+│   ├── firewall.md
+│   └── assets/screenshots/
 │
 ├── services/
 │   ├── adguard/
+│   ├── blackbox-exporter/
 │   ├── caddy/
-│   ├── grafana/
+│   ├── grafana/                 # includes dashboard JSON
 │   ├── homepage/
 │   ├── node-exporter/
 │   ├── ntfy/
@@ -551,10 +599,17 @@ Security controls are expanded when they provide concrete value rather than bein
 | Docker Compose validation | Implemented |
 | Self-hosted CD runner | Implemented |
 | GitHub → Runner → Ansible → DEV connectivity | Verified |
-| Automated application deployment through CD | In progress |
+| Automated application deployment through CD | Not confirmed; current workflow is connectivity-only |
 | Restic backup automation | Implemented |
 | Restore smoke tests | Verified |
-| Monitoring migration to DEV | In progress |
+| Monitoring on DEV | Operational in documented state |
+| Node Exporter targets | DEV and Raspberry Pi verified |
+| Blackbox HTTPS checks | Eight internal services verified on 09 October 2026 |
+| Grafana dashboards | Host Overview and Service Health V3 visually checked |
+| Prometheus configuration validation | Invalid configuration rejection verified |
+| Prometheus reload after a real change | Pending verification |
+| Grafana Alerting → ntfy | Planned |
+| Dashboard provisioning | Not confirmed |
 | Kubernetes / k3s | Planned |
 | Terraform / Cloud IaC | Planned |
 
@@ -615,16 +670,19 @@ The current implementation order is deliberately incremental.
 
 ### Next
 
-- deploy Node Exporter to the development environment through CD,
-- verify the deployment after the workflow completes,
-- restore/deploy Prometheus and Grafana to the development environment,
-- extend monitoring to additional hosts,
-- introduce meaningful alerting.
+- configure Grafana Alerting with ntfy for sustained service failures (approximately two minutes), then test notification and recovery,
+- confirm the V3 export against the committed dashboard and make provisioning reproducible where useful,
+- verify the Prometheus reload handler after a real valid configuration change,
+- complete the remote file-existence check from the configuration validation negative test,
+- add the real Homepage and Grafana screenshots,
+- extend the connectivity-only CD workflow with a controlled service deployment and verify the resulting state.
 
 ### Later
 
-- container-level metrics,
-- Alertmanager with ntfy,
+- container-level metrics with cAdvisor and monitoring of the Proxmox host,
+- monitoring retention and backup/restore coverage,
+- review obsolete Docker-network firewall rules after confirming active paths,
+- additional alerting components only where needed,
 - further backup coverage and restore testing,
 - tighter deployment controls where useful,
 - k3s/Kubernetes,
@@ -673,6 +731,8 @@ The result is a continuously evolving environment for practical DevOps and platf
 
 A more detailed description of the technical design and its trust boundaries is available in:
 
-`docs/architecture.md`
+[docs/architecture.md](docs/architecture.md)
+
+Supporting documentation may describe earlier milestones; the dated current-state sections in this README distinguish today's documented runtime state from implemented repository configuration and planned work.
 
 The repository intentionally contains only information suitable for publication. Concrete private infrastructure details, credentials, internal inventories and operational secrets are maintained outside the public repository.
