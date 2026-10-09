@@ -6,11 +6,13 @@ services:
 
     environment:
       HOMEPAGE_ALLOWED_HOSTS: homepage.home.arpa
+      NODE_EXTRA_CA_CERTS: /etc/ssl/certs/caddy-root.crt
       HOMEPAGE_VAR_ADGUARD_USER: ${HOMEPAGE_VAR_ADGUARD_USER}
       HOMEPAGE_VAR_ADGUARD_PASS: ${HOMEPAGE_VAR_ADGUARD_PASS}
 
     volumes:
       - /srv/appdata/homepage/config:/app/config
+      - /srv/appdata/homepage/certs/caddy-root.crt:/etc/ssl/certs/caddy-root.crt:ro
 
     networks:
       - proxy
