@@ -1,0 +1,7 @@
+---
+- name: Deploy ACME certificate management
+  hosts: production
+  become: true
+
+  roles:
+    - acme

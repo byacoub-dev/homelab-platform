@@ -40,3 +40,12 @@ homepage.home.arpa {
     tls internal
     reverse_proxy homepage:3000
 }
+
+# Example: publicly trusted wildcard certificate for internal services.
+# The certificate is provisioned separately via DNS-01.
+# No public inbound access is required.
+
+vault.example.com {
+    tls /etc/caddy/certs/fullchain.pem /etc/caddy/certs/privkey.pem
+    reverse_proxy vaultwarden:80
+}

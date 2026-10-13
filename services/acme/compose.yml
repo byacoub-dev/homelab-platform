@@ -1,0 +1,16 @@
+services:
+  acme:
+    image: neilpang/acme.sh:latest
+    container_name: acme
+    restart: "no"
+
+    volumes:
+      - /srv/appdata/acme/config:/acme.sh
+      - /srv/appdata/acme/certs:/certs
+      - /etc/homelab/secrets/acme/netcup.env:/run/secrets/netcup.env:ro
+
+    security_opt:
+      - no-new-privileges:true
+
+    cap_drop:
+      - ALL
