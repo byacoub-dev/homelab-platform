@@ -11,6 +11,38 @@
     - /srv/appdata/acme/certs
     - /etc/homelab/secrets/acme
 
+- name: Create ntfy secret directory
+  ansible.builtin.file:
+    path: /etc/homelab/secrets/ntfy
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+# Verify the existing ntfy access token without exposing its contents.
+# The token is provisioned locally and must never be stored in Git.
+- name: Check existing ntfy ACME token
+  ansible.builtin.stat:
+    path: /etc/homelab/secrets/ntfy/acme.token
+  register: acme_ntfy_token
+  no_log: true
+
+- name: Require existing ntfy ACME token
+  ansible.builtin.assert:
+    that:
+      - acme_ntfy_token.stat.isreg | default(false)
+    fail_msg: "ntfy ACME token missing: provision acme.token securely before deployment."
+  no_log: true
+
+- name: Validate ntfy ACME token permissions
+  ansible.builtin.assert:
+    that:
+      - acme_ntfy_token.stat.pw_name == 'root'
+      - acme_ntfy_token.stat.gr_name == 'root'
+      - acme_ntfy_token.stat.mode == '0600'
+    fail_msg: "ntfy ACME token must be owned by root:root with permissions 0600."
+  no_log: true
+
 - name: Check existing netcup API secret
   ansible.builtin.stat:
     path: /etc/homelab/secrets/acme/netcup.env
