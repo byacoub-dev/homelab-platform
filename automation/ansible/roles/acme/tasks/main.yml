@@ -1,0 +1,57 @@
+---
+- name: Create ACME application directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  loop:
+    - /srv/appdata/acme/config
+    - /srv/appdata/acme/certs
+    - /etc/homelab/secrets/acme
+
+- name: Check existing netcup API secret
+  ansible.builtin.stat:
+    path: /etc/homelab/secrets/acme/netcup.env
+  register: acme_secret
+  no_log: true
+
+- name: Require existing netcup API secret
+  ansible.builtin.assert:
+    that:
+      - acme_secret.stat.isreg | default(false)
+    fail_msg: "ACME secret missing: provision netcup.env securely before deployment."
+
+- name: Validate netcup API secret permissions
+  ansible.builtin.assert:
+    that:
+      - acme_secret.stat.pw_name == 'root'
+      - acme_secret.stat.gr_name == 'root'
+      - acme_secret.stat.mode == '0600'
+    fail_msg: "ACME secret must be owned by root:root with permissions 0600."
+  no_log: true
+
+- name: Create ACME deployment directory
+  ansible.builtin.file:
+    path: /opt/homelab-platform/services/acme
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+
+- name: Deploy ACME Compose file
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../../services/acme/compose.yml"
+    dest: /opt/homelab-platform/services/acme/compose.yml
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+
+- name: Deploy ACME renewal script
+  ansible.builtin.copy:
+    src: acme-renew.sh
+    dest: /usr/local/sbin/acme-renew.sh
+    owner: root
+    group: root
+    mode: "0750"

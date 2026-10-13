@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
 
     environment:
-      HOMEPAGE_ALLOWED_HOSTS: homepage.home.arpa
+      HOMEPAGE_ALLOWED_HOSTS: "homepage.home.arpa,homepage.cronmancer.de"
       NODE_EXTRA_CA_CERTS: /etc/ssl/certs/caddy-root.crt
       HOMEPAGE_VAR_ADGUARD_USER: ${HOMEPAGE_VAR_ADGUARD_USER}
       HOMEPAGE_VAR_ADGUARD_PASS: ${HOMEPAGE_VAR_ADGUARD_PASS}

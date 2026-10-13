@@ -13,6 +13,7 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - "${CADDY_DATA_PATH}/data:/data"
       - "${CADDY_DATA_PATH}/config:/config"
+      - /srv/appdata/acme/certs:/etc/caddy/certs:ro
 
     networks:
       - proxy
