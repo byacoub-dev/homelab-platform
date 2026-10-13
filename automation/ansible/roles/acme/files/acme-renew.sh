@@ -62,6 +62,15 @@ case "$MODE" in
       set -eu
       umask 077
 
+      # Check ACME API connectivity before renewal.
+      curl --fail --silent --show-error \
+        --connect-timeout 10 \
+        --max-time 30 \
+        --retry 3 \
+        --retry-delay 3 \
+        --output /dev/null \
+        https://acme-v02.api.letsencrypt.org/directory
+
       set -a
       . /run/secrets/netcup.env
       set +a
