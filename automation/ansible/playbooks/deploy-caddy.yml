@@ -1,0 +1,7 @@
+---
+- name: Deploy Caddy configuration
+  hosts: production
+  become: true
+
+  roles:
+    - caddy

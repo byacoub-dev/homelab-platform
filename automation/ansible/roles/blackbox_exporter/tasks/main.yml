@@ -22,6 +22,7 @@
       dest: /srv/stacks/blackbox-exporter/compose.yml
     - src: "{{ playbook_dir }}/../../../services/blackbox-exporter/blackbox.yml"
       dest: /srv/stacks/blackbox-exporter/blackbox.yml
+  register: blackbox_config_copy
 
 - name: Copy Caddy root certificate
   ansible.builtin.copy:
@@ -35,3 +36,4 @@
   community.docker.docker_compose_v2:
     project_src: /srv/stacks/blackbox-exporter
     state: present
+    recreate: "{{ 'always' if blackbox_config_copy.changed else 'auto' }}"

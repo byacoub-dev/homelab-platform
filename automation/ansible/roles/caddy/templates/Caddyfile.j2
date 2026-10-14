@@ -1,0 +1,41 @@
+# Managed by Ansible.
+# Service routes are configured through inventory variables.
+
+{% for route in caddy_routes %}
+{{ route.name }}.{{ caddy_domain }} {
+    tls /etc/caddy/certs/fullchain.pem /etc/caddy/certs/privkey.pem
+
+{% if route.insecure_backend_tls | default(false) %}
+    reverse_proxy {{ route.backend }} {
+        transport http {
+            tls_insecure_skip_verify
+        }
+    }
+{% else %}
+    reverse_proxy {{ route.backend }}
+{% endif %}
+}
+
+{% if caddy_enable_legacy %}
+{{ route.name }}.{{ caddy_legacy_domain }} {
+    tls internal
+
+{% if route.insecure_backend_tls | default(false) %}
+    reverse_proxy {{ route.backend }} {
+        transport http {
+            tls_insecure_skip_verify
+        }
+    }
+{% else %}
+    reverse_proxy {{ route.backend }}
+{% endif %}
+}
+
+{% endif %}
+{% endfor %}
+{% if caddy_enable_tls_test %}
+tls-test.{{ caddy_domain }} {
+    tls /etc/caddy/certs/fullchain.pem /etc/caddy/certs/privkey.pem
+    respond "Cronmancer HTTPS funktioniert!" 200
+}
+{% endif %}

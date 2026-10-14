@@ -2,23 +2,23 @@
 - Anwendungen:
     - Paperless-ngx:
         icon: paperless-ngx
-        href: https://paperless.home.arpa
+        href: https://paperless.cronmancer.de
         description: Dokumentenverwaltung
         widget:
           type: paperlessngx
-          url: https://paperless.home.arpa
+          url: https://paperless.cronmancer.de
           key: "{{HOMEPAGE_VAR_PAPERLESS_TOKEN}}"
           fields: ["total", "inbox"]
 
     - Vaultwarden:
         icon: vaultwarden
-        href: https://vault.home.arpa
+        href: https://vault.cronmancer.de
         description: Passwortverwaltung
 
 - Infrastruktur:
     - AdGuard Home:
         icon: adguard-home
-        href: https://adguard.home.arpa
+        href: https://adguard.cronmancer.de
         description: DNS & Werbeblocker
         widget:
           type: adguard
@@ -28,38 +28,38 @@
 
     - Proxmox:
         icon: proxmox
-        href: https://prox10.home.arpa
+        href: https://prox10.cronmancer.de
         description: Virtualisierung · core01
         widget:
           type: proxmox
-          url: https://prox10.home.arpa
+          url: https://prox10.cronmancer.de
           username: "{{HOMEPAGE_VAR_PROXMOX_TOKEN_ID}}"
           password: "{{HOMEPAGE_VAR_PROXMOX_TOKEN_SECRET}}"
           fields: ["vms", "lxc", "resources.cpu", "resources.mem"]
 
     - ntfy:
         icon: ntfy
-        href: https://ntfy.home.arpa
+        href: https://ntfy.cronmancer.de
         description: Benachrichtigungen
 
 - Monitoring & Operations:
     - Grafana:
         icon: grafana
-        href: https://grafana.home.arpa
+        href: https://grafana.cronmancer.de
         description: Dashboards & Observability
 
     - Prometheus:
         icon: prometheus
-        href: https://prometheus.home.arpa
+        href: https://prometheus.cronmancer.de
         description: Metriken & Monitoring
 
     - WUD:
         icon: whats-up-docker
-        href: https://updates.home.arpa
+        href: https://updates.cronmancer.de
         description: Container-Updates
         widget:
           type: whatsupdocker
-          url: https://updates.home.arpa
+          url: https://updates.cronmancer.de
           username: "{{HOMEPAGE_VAR_WUD_USER}}"
           password: "{{HOMEPAGE_VAR_WUD_PASS}}"
           fields: ["monitoring", "updates"]
