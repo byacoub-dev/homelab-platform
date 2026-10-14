@@ -1,0 +1,13 @@
+---
+- name: Recreate Caddy
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - up
+      - -d
+      - --force-recreate
+      - --no-deps
+      - caddy
+    chdir: /opt/homelab-platform/services/caddy
+  when: not ansible_check_mode

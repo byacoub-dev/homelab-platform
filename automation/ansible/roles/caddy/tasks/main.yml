@@ -1,0 +1,47 @@
+---
+- name: Deploy Caddy Compose configuration
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../../services/caddy/compose.yml"
+    dest: /opt/homelab-platform/services/caddy/compose.yml
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+
+- name: Render Caddy configuration for validation
+  ansible.builtin.template:
+    src: Caddyfile.j2
+    dest: /tmp/homelab-Caddyfile.candidate
+    owner: root
+    group: root
+    mode: "0600"
+  changed_when: false
+
+- name: Validate Caddy configuration
+  ansible.builtin.command:
+    argv:
+      - docker
+      - run
+      - --rm
+      - --network
+      - none
+      - -v
+      - /tmp/homelab-Caddyfile.candidate:/etc/caddy/Caddyfile:ro
+      - -v
+      - /srv/appdata/acme/certs:/etc/caddy/certs:ro
+      - caddy:2.11.4-alpine
+      - caddy
+      - validate
+      - --config
+      - /etc/caddy/Caddyfile
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Deploy validated Caddy configuration
+  ansible.builtin.template:
+    src: Caddyfile.j2
+    dest: /opt/homelab-platform/services/caddy/Caddyfile
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+    backup: true
+  notify: Recreate Caddy

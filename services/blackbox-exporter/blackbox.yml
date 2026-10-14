@@ -5,5 +5,3 @@ modules:
     http:
       preferred_ip_protocol: ip4
       follow_redirects: true
-      tls_config:
-        ca_file: /etc/blackbox/certs/caddy-root.crt
