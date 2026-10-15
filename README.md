@@ -1,738 +1,228 @@
 # Homelab Platform
 
-A practical DevOps homelab for learning and implementing containerized infrastructure, configuration management, CI/CD, monitoring, networking, backup and recovery.
+A practical DevOps and platform engineering homelab built around Docker Compose, Ansible, GitHub Actions, Proxmox, Prometheus and Grafana.
 
-The project is not intended to be a collection of self-hosted applications. Its primary purpose is to build a small but realistic platform in which infrastructure changes are versioned, validated, automated and documented.
+The repository documents the move from individually managed services toward a small, reproducible platform: configuration is versioned, changes are reviewed, CI validates the repository, Ansible manages selected deployments, and monitoring and recovery are treated as part of normal operations.
 
-The environment is built around Docker Compose, Ansible, GitHub Actions, Proxmox, Prometheus and Grafana. Stable infrastructure services are separated from development and automation workloads, while the public repository contains only reusable configuration and generic examples.
+> **Documented state: 15 October 2026.** Runtime claims in this README are dated snapshots based on verified checks and the supplied screenshots. The public repository contains reusable configuration and examples; inventories, credentials and persistent application data remain outside Git.
 
-> **Documented state: 09 October 2026.** DevOps and platform engineering remain the main focus: reusable Docker Compose definitions, Ansible automation, reviewed Git changes, CI validation and recovery. Monitoring is now operational on `dev01`, including host metrics, eight internal HTTPS checks and Grafana Service Health V3. The isolated CD path is verified for connectivity only; automated service deployment through that workflow is not yet confirmed.
+## What this project demonstrates
 
-This overview is based on the user's `HOMELAB.md` dated 09 October 2026 and the current repository configuration. Runtime observations describe that documented state, not a live infrastructure audit.
-
----
-
-## Goals
-
-The project is designed around a few core principles:
-
-- infrastructure and service configuration should be reproducible,
-- changes should be versioned and reviewed before deployment,
-- CI and CD should have clearly separated responsibilities,
-- development and infrastructure workloads should be isolated where useful,
-- persistent application data should remain separate from Git,
-- secrets and private infrastructure details must not be committed,
-- monitoring should provide operational value rather than only dashboards,
-- backups are only considered useful when restoration has been tested,
-- new tools should solve an actual problem or provide a concrete learning benefit.
-
-The long-term goal is to use the homelab as a realistic environment for developing practical DevOps, platform engineering and infrastructure automation skills.
-
----
-
-## Architecture
-
-The current environment combines a small Proxmox virtualization platform with a dedicated Raspberry Pi for stable infrastructure services.
-
-```text
-                           GitHub
-                              │
-                ┌─────────────┴─────────────┐
-                │                           │
-          Pull Request                 Push to main
-                │                           │
-                ▼                           ▼
-       GitHub-hosted Runner        Self-hosted Runner
-                │                     runner01
-                │                           │
-                ▼                           │
-         CI Validation                     │
-     ┌────────────────────┐                 │
-     │ YAML validation    │                 │
-     │ Ansible syntax     │                 │
-     │ Compose validation │                 │
-     └────────────────────┘                 │
-                                            │
-                                      SSH / Ansible
-                                            │
-                                            ▼
-                                          dev01
-                                    Development Target
-                                            │
-                                            ▼
-                                  Ansible ping verified
-                                  (no CD deployment yet)
-
-
-                  Internal Homelab Network
-                           │
-              ┌────────────┴────────────┐
-              │                         │
-          Proxmox Host             Raspberry Pi
-              │                         │
-       ┌──────┼──────┐          Stable 24/7 Services
-       │      │      │                  │
-     dev01  ops01  runner01       ┌─────┼─────────────┐
-                                  │     │             │
-                               AdGuard Caddy     Applications
-```
-
-The physical Proxmox host remains intentionally lightweight. Development, operations and CI/CD workloads are placed in separate virtual machines.
-
-The Raspberry Pi continues to host stable 24/7 infrastructure services such as DNS, reverse proxy and selected applications.
-
-| Host | Current responsibility |
-|---|---|
-| `core01` | Proxmox hypervisor; application workloads run in VMs |
-| `dev01` | Docker development/deployment target, WUD and monitoring stack |
-| `ops01` | Manual Ansible control node and operations |
-| `runner01` | Isolated self-hosted runner; CD connectivity verification |
-| Raspberry Pi | AdGuard, Caddy, Homepage, Paperless-ngx, Vaultwarden, ntfy and Node Exporter |
-
-Immich is outside the current intended operating state. Kubernetes/k3s has not been started.
-
----
-
-## CI/CD Architecture
-
-CI and CD are deliberately separated.
-
-### Continuous Integration
-
-Every pull request targeting `main` is validated using a GitHub-hosted runner.
-
-The CI workflow currently performs:
-
-- YAML validation with `yamllint`,
-- Ansible playbook syntax checks,
-- Docker Compose configuration validation,
-- installation of the Ansible collections defined by the repository.
-
-This allows configuration errors to be detected before changes are merged.
-
-```text
-Feature Branch
-      │
-      ▼
-Pull Request
-      │
-      ▼
-GitHub-hosted Runner
-      │
-      ├── yamllint
-      ├── Ansible syntax-check
-      └── docker compose config
-      │
-      ▼
-Review / Merge
-```
-
-The CI workflow does not require access to the private homelab network.
-
----
-
-### Continuous Deployment
-
-The CD connectivity job uses a dedicated self-hosted GitHub Actions runner named `runner01`.
-
-The runner is hosted in its own virtual machine and is deliberately separated from the normal Ansible control node.
-
-The CD workflow currently performs:
-
-1. checkout of the repository,
-2. installation of the required Ansible collections,
-3. loading of the runner-local Ansible inventory,
-4. SSH connection to the development target,
-5. Ansible connectivity verification.
-
-```text
-Merge to main
-      │
-      ▼
-GitHub Actions
-      │
-      ▼
-runner01
-Self-hosted Runner
-      │
-      ├── Checkout repository
-      ├── Install Ansible collections
-      └── Run Ansible
-              │
-              ▼
-            dev01
-```
-
-The complete transport path has been successfully tested.
-
-The current [CD workflow](.github/workflows/cd.yml) installs collections and runs `ansible all -m ping` against the runner-local inventory. It does not invoke a deployment playbook. Node Exporter already runs on `dev01`, but its deployment through CD is not confirmed. A future controlled deployment must be added explicitly and verified after execution.
-
-Production services on the Raspberry Pi are deliberately excluded from automatic deployment at this stage.
-
----
-
-## Trust Boundaries
-
-The repository is public, which makes the handling of self-hosted GitHub Actions runners particularly important.
-
-Unreviewed pull-request code must never execute directly inside the private infrastructure.
-
-The architecture therefore separates untrusted CI execution from trusted CD execution:
-
-```text
-                    PUBLIC / UNTRUSTED
-
-                         GitHub
-                            │
-                     Pull Requests
-                            │
-                            ▼
-                  GitHub-hosted Runner
-                            │
-                      CI Validation
-
-
-────────────────────── TRUST BOUNDARY ──────────────────────
-
-
-                      Push to main
-                            │
-                            ▼
-                        runner01
-                  Self-hosted CD Runner
-                            │
-                       SSH / Ansible
-                            │
-                            ▼
-                          dev01
-```
-
-The self-hosted runner is intentionally not used for `pull_request` events.
-
-The CD workflow is triggered only by:
-
-- pushes to `main`,
-- explicit manual execution through `workflow_dispatch`.
-
-This behavior has been verified in practice: the pull request introducing the CD workflow executed only the GitHub-hosted CI. The self-hosted runner was contacted only after the pull request had been merged into `main`.
-
----
-
-## Ansible Automation
-
-Ansible is used for provisioning and service deployment.
-
-The automation is stored separately from the service definitions:
-
-```text
-automation/ansible/
-├── ansible.cfg
-├── collections/
-│   └── requirements.yml
-├── inventory/
-│   ├── hosts.yml.example
-│   └── group_vars/
-│       └── development.yml.example
-├── playbooks/
-│   ├── bootstrap.yml
-│   ├── configure-firewall.yml
-│   ├── deploy-blackbox-exporter.yml
-│   ├── deploy-grafana.yml
-│   ├── deploy-node-exporter.yml
-│   ├── deploy-prometheus.yml
-│   ├── deploy-wud.yml
-│   └── system-info.yml
-└── roles/
-    ├── blackbox_exporter/
-    ├── common/
-    ├── docker/
-    ├── firewall/
-    ├── grafana/
-    ├── node_exporter/
-    ├── prometheus/
-    └── wud/
-```
-
-Reusable roles are preferred over host-specific automation.
-
-The current roles cover areas including:
-
-- base system configuration,
-- Docker installation,
-- firewall configuration,
-- Node Exporter,
-- Prometheus,
-- Blackbox Exporter,
-- Grafana,
-- WUD.
-
-Ansible has already been used to provision the development environment and deploy WUD reproducibly.
-
-Idempotency is an explicit goal. Re-running a deployment should not cause unnecessary changes when the desired state is already present.
-
----
-
-## Inventory and Environment Separation
-
-Real infrastructure values are not stored in the public repository.
-
-For example:
-
-```text
-inventory/
-├── hosts.yml          # local, ignored by Git
-└── hosts.yml.example  # public example
-```
-
-The same principle applies to environment-specific variables.
-
-```text
-inventory/group_vars/
-├── development.yml          # local, ignored
-└── development.yml.example  # public example
-```
-
-This allows the repository to document the expected structure without coupling it to the actual homelab network.
-
-Hostnames, internal addresses and environment-specific values remain local.
-
----
-
-## Service Model
-
-Services are organized independently from the hosts on which they run.
-
-```text
-services/
-├── adguard/
-├── blackbox-exporter/
-├── caddy/
-├── grafana/
-├── homepage/
-├── node-exporter/
-├── ntfy/
-├── paperless/
-├── prometheus/
-├── vaultwarden/
-└── wud/
-```
-
-A service directory typically contains:
-
-```text
-service/
-├── compose.yml
-├── .env.example
-└── additional configuration
-```
-
-The repository does not prescribe that a particular service must run on a particular host.
-
-This allows the same definitions to be reused when the infrastructure changes.
-
-Host-specific deployment decisions are deliberately kept outside the reusable service definitions.
-
----
-
-## Persistent Data
-
-Git contains configuration, not application state.
-
-Persistent data is stored outside the repository using a consistent host-side structure:
-
-```text
-/srv/appdata/<service>
-```
-
-Deployment directories use:
-
-```text
-/srv/stacks/<service>
-```
-
-This separation makes it possible to:
-
-- recreate containers without losing application data,
-- version configuration independently from runtime state,
-- back up important data without backing up Git working trees,
-- migrate services between hosts more predictably.
-
-Database files, uploads, application state and other runtime data are never committed to the repository.
-
----
-
-## Networking and Reverse Proxy
-
-AdGuard provides internal DNS resolution.
-
-Caddy acts as the central reverse proxy for HTTP/HTTPS services.
-
-The general access path is:
-
-```text
-Client
-  │
-  ▼
-AdGuard DNS
-  │
-  ▼
-Caddy
-  │
-  ├── Local container
-  │
-  └── Service on another internal host
-```
-
-Internal service names use the `home.arpa` namespace.
-
-Caddy uses its internal certificate authority for local TLS.
-
-This allows services to be accessed using readable internal names instead of exposing host ports directly to users.
-
----
-
-## Monitoring
-
-Monitoring supports operating and troubleshooting the platform. The migration to `dev01` is complete in the documented state.
-
-```text
-Node Exporter on dev01 and Raspberry Pi ──► Prometheus ──► Grafana
-                                               ▲
-                                               │ probe metrics
-                                        Blackbox Exporter
-                                               │
-                                  internal DNS → Caddy → HTTPS services
-```
-
-### Host and service checks
-
-Node Exporter provides host metrics for `dev01` and the Raspberry Pi. Prometheus collects them through file-based discovery; the documented API check confirmed both targets with `up=1`.
-
-Blackbox Exporter adds HTTP checks through the actual internal HTTPS access path. The `blackbox-http` job covers eight services:
-
-| Service | Checked access path |
-|---|---|
-| Paperless-ngx | Internal HTTPS through Caddy |
-| Vaultwarden | Internal HTTPS through Caddy |
-| AdGuard web interface | Internal HTTPS through Caddy; does not test DNS service health |
-| Homepage | Internal HTTPS through Caddy |
-| Grafana | Internal HTTPS through Caddy |
-| Prometheus | Internal HTTPS through Caddy |
-| WUD | Internal HTTPS through Caddy |
-| ntfy | Internal HTTPS through Caddy |
-
-All eight probes were documented with `probe_success=1` and HTTP 200 on 09 October 2026. This is a snapshot, not a guarantee of continuous availability or a test of every application function.
-
-The `http_2xx` module follows redirects and verifies TLS using a read-only mounted Caddy root certificate. Blackbox Exporter is reached as `blackbox-exporter:9115` on the shared Docker `monitoring` network; it publishes no host port. Real HTTP targets are generated by Ansible from local variables into `targets/http.yml`; host targets remain separate in `targets/nodes.yml`.
-
-### Grafana dashboards
-
-**Host Overview** provides selectable Node Exporter host metrics.
-
-**Homelab | Service Health V3** is the documented, imported and visually checked service dashboard. It includes:
-
-- UP/DOWN counts, current reachability and observed 24-hour/7-day probe success ratios,
-- a service table with HTTP status, HTTPS use and probe duration,
-- duration time series and per-service status history,
-- TLS certificate lifetime in hours and the five slowest services over 15 minutes,
-- a dynamic `service` filter, refresh and measurement notes.
-
-A [Service Health dashboard JSON](services/grafana/dashboards/service-health.json) is already present in the current repository. Its panels match the documented V3 feature set. The local documentation still lists versioning as pending; the exact identity with the user's exported V3 file and automated provisioning are not confirmed here.
-
-Probe duration measures the complete check from the monitoring network, not only application processing time. Historical ratios use observed probes; missing data and time before collection began do not establish full-window availability or an SLA. Caddy's short-lived internal certificates normally renew automatically, so a low remaining lifetime alone does not prove a fault.
-
-### Configuration validation and remaining verification
-
-The Prometheus Ansible role validates configuration with `promtool` before replacing it. The documented negative test rejected invalid configuration with `changed=false`. A HUP reload handler exists in the repository, but execution after a real valid configuration change is still unconfirmed.
-
-Grafana Alerting with ntfy is the next planned step, including a controlled outage and recovery test. Alert delivery, container metrics and monitoring of the Proxmox host are not yet claimed as implemented.
-
----
+- service definitions with Docker Compose and persistent data kept outside Git,
+- reusable Ansible roles for provisioning, firewall rules and service deployment,
+- pull request based changes with YAML, Ansible and Compose validation,
+- separation between public CI and the trusted self-hosted CD runner,
+- internal DNS, reverse proxying and DNS-01 certificates without public inbound access,
+- host metrics and HTTPS service checks with Prometheus, Blackbox Exporter and Grafana,
+- encrypted backups with non-destructive restore tests,
+- explicit distinction between implemented code, verified runtime state and planned work.
 
 ## Screenshots
 
-Two real screenshots are planned: Homepage as the service entry point and Grafana Service Health V3 as the operational view. No screenshot files were available with the supplied documents, so no images are embedded yet.
+### Service entry point
 
-The [screenshot asset guide](docs/assets/screenshots/README.md) defines filenames, captions and publication checks. Add only user-provided captures of the actual environment; review visible addresses, user data and credentials before publishing.
+![Homepage service overview](docs/assets/screenshots/homepage-overview-2026-10-15.png)
 
----
+Homepage groups applications, infrastructure and operations tools. The widgets expose useful operating signals without replacing the monitoring stack. Captured on 15 October 2026.
 
-## Backup and Recovery
+### HTTPS service health
 
-Backup design is treated as part of operating the platform rather than as an optional addition.
+![Grafana Service Health overview](docs/assets/screenshots/grafana-service-health-overview-2026-10-15.png)
 
-Important application data is backed up using Restic to network storage.
+Grafana summarizes eight HTTPS probes through the real internal access path. The values are a point-in-time view rather than an availability guarantee. Captured on 15 October 2026.
 
-Current backup principles include:
+### Virtualization
 
-- encrypted Restic repositories,
-- separate backup targets for important applications,
-- automated execution through systemd timers,
-- retention policies,
-- database-aware backups where necessary,
-- non-destructive restore tests.
+![Proxmox virtual environment overview](docs/assets/screenshots/proxmox-overview-2026-10-15.png)
 
-Paperless and Vaultwarden backups have both been restored successfully in controlled smoke tests.
+Proxmox hosts separate VMs for development, manual operations and the self-hosted GitHub Actions runner. Captured on 15 October 2026.
 
-The restore tests use temporary directories and verify representative critical data without overwriting production files.
+Additional Grafana views are available in the [screenshot gallery](docs/assets/screenshots/README.md).
 
-This means the backup process has been tested beyond simply confirming that backup jobs complete successfully.
+## Architecture
 
----
+```mermaid
+flowchart TB
+    GH[GitHub]
+    PR[Pull request]
+    CI[GitHub-hosted CI]
+    MAIN[main branch]
+    RUNNER[runner01<br/>self-hosted runner]
+    OPS[ops01<br/>Ansible control]
+    DEV[dev01<br/>Docker and monitoring]
+    CORE[core01<br/>Proxmox]
+    PI[Raspberry Pi<br/>stable 24/7 services]
+    CLIENT[Internal clients]
 
-## Repository Structure
+    GH --> PR --> CI
+    CI -->|review and merge| MAIN
+    MAIN -->|trusted push or manual run| RUNNER
+    RUNNER -->|Ansible connectivity check| DEV
+    OPS -->|manual Ansible| DEV
+    OPS -->|manual Ansible| PI
+    CORE --> DEV
+    CORE --> OPS
+    CORE --> RUNNER
+    CLIENT -->|DNS| PI
+    PI -->|reverse proxy| DEV
+```
+
+| System | Responsibility |
+|---|---|
+| `core01` | Proxmox hypervisor; application workloads run in VMs |
+| `dev01` | Docker target, WUD, Prometheus, Blackbox Exporter, Grafana and Node Exporter |
+| `ops01` | Manual Ansible control node and infrastructure operations |
+| `runner01` | Isolated self-hosted runner for trusted CD jobs |
+| Raspberry Pi | AdGuard, Caddy, Homepage, Paperless-ngx, Vaultwarden, ntfy and Node Exporter |
+
+The hypervisor stays focused on virtualization. Administrative work, repository-controlled automation and application workloads use separate systems. The Raspberry Pi keeps core internal services available independently of the development VMs.
+
+See [Architecture](docs/architecture.md) for the detailed design and trust boundaries.
+
+## Repository layout
 
 ```text
 homelab-platform/
-├── .github/
-│   └── workflows/
-│       ├── ci.yml
-│       └── cd.yml
-│
-├── automation/
-│   └── ansible/
-│       ├── collections/
-│       ├── inventory/          # includes group_vars/
-│       ├── playbooks/
-│       └── roles/
-│
-├── docs/
-│   ├── architecture.md
-│   ├── firewall.md
-│   └── assets/screenshots/
-│
-├── services/
-│   ├── adguard/
-│   ├── blackbox-exporter/
-│   ├── caddy/
-│   ├── grafana/                 # includes dashboard JSON
-│   ├── homepage/
-│   ├── node-exporter/
-│   ├── ntfy/
-│   ├── paperless/
-│   ├── prometheus/
-│   ├── vaultwarden/
-│   └── wud/
-│
-├── .gitignore
-├── .yamllint
-└── README.md
+├── .github/workflows/          # CI and trusted CD connectivity
+├── automation/ansible/
+│   ├── inventory/              # public examples; real inventory is ignored
+│   ├── playbooks/
+│   └── roles/
+├── docs/                       # architecture, firewall and screenshots
+└── services/                   # reusable Compose and service configuration
 ```
 
----
-
-## Git Workflow
-
-Relevant changes follow a branch-based workflow:
+Service definitions are independent from host placement. A typical deployed service uses:
 
 ```text
-main
-  │
-  └── feature / refactor branch
-             │
-             ▼
-          Changes
-             │
-             ▼
-          Local test
-             │
-             ▼
-           Commit
-             │
-             ▼
-            Push
-             │
-             ▼
-       Pull Request
-             │
-             ▼
-             CI
-             │
-             ▼
-           Merge
-             │
-             ▼
-             CD
+/srv/stacks/<service>     deployed configuration
+/srv/appdata/<service>   persistent state
 ```
 
-Direct changes to `main` are avoided for normal development work.
+This keeps runtime data out of the repository and allows configuration to be replaced without overwriting application state.
 
-This provides a practical environment for learning and applying pull requests, automated validation and controlled deployments.
+## Automation and delivery
 
----
+### Continuous integration
 
-## Security Principles
+The CI workflow is designed to run on GitHub-hosted runners for pushes and pull requests targeting `main`. It performs:
 
-The repository follows several basic security rules:
+- `yamllint` checks for Ansible and service YAML,
+- Ansible playbook syntax checks using the example inventory,
+- `docker compose config --quiet` for every service definition.
 
-- no passwords in Git,
-- no private SSH keys in Git,
-- no API tokens in Git,
-- no real `.env` files in Git,
-- no real internal inventory in the public repository,
-- generic `.example` files for required configuration,
-- dedicated SSH credentials for automation,
-- dedicated automation accounts,
-- minimal GitHub Actions permissions,
-- self-hosted runners isolated from normal management systems,
-- no self-hosted execution for pull requests,
-- production services excluded from automatic deployment until the deployment process has been proven in development.
+The latest queried CI runs from 14 October 2026 ended with GitHub's `startup_failure` before a job was created. The workflow definition is present, but this README therefore does not claim a currently green CI run.
 
-Security controls are expanded when they provide concrete value rather than being added only for complexity.
+### Continuous delivery
 
----
+The CD workflow is deliberately narrower than a full deployment pipeline. On pushes to `main` or manual execution it selects the isolated `runner01`, installs the declared Ansible collections, loads a runner-local inventory and runs:
 
-## Current Status
+```text
+ansible all -m ping
+```
 
-| Area | Status |
+The GitHub-to-runner-to-target connection was previously verified. The current workflow does not invoke a deployment playbook, so automated service deployment through GitHub Actions is not claimed.
+
+Manual Ansible deployment from `ops01` is a separate path. It is used for controlled infrastructure changes and verification before broader automation is introduced.
+
+## Services and configuration management
+
+The repository currently contains definitions for:
+
+- ACME certificate management,
+- AdGuard Home and Caddy,
+- Homepage, Paperless-ngx, Vaultwarden and ntfy,
+- WUD,
+- Node Exporter, Prometheus, Blackbox Exporter and Grafana.
+
+Ansible roles cover base configuration, Docker, UFW, Caddy, ACME and the development monitoring services. Environment-specific values are supplied through ignored inventories and variable files; `.example` files document the expected structure.
+
+## Observability
+
+```mermaid
+flowchart LR
+    NE1[Node Exporter<br/>dev01]
+    NE2[Node Exporter<br/>Raspberry Pi]
+    SERVICES[Internal HTTPS services]
+    BLACKBOX[Blackbox Exporter]
+    PROM[Prometheus]
+    GRAFANA[Grafana]
+
+    NE1 --> PROM
+    NE2 --> PROM
+    SERVICES -->|DNS, Caddy and TLS path| BLACKBOX
+    BLACKBOX --> PROM
+    PROM --> GRAFANA
+```
+
+The documented monitoring state includes host metrics for `dev01` and the Raspberry Pi and eight HTTPS probes for AdGuard, Grafana, Homepage, ntfy, Paperless, Prometheus, Vaultwarden and WUD.
+
+The Service Health dashboard exposes current reachability, HTTP status, probe duration, observed 24-hour and 7-day success ratios, status history and certificate lifetime. Historical ratios reflect available probe samples; they are not an SLA.
+
+Prometheus configuration is validated with `promtool` before replacement. The invalid-configuration path was tested successfully. Execution of the reload handler after a real valid change remains a separate verification item.
+
+## Internal HTTPS and ACME
+
+Internal services use the `cronmancer.de` domain while remaining reachable only through the private network or VPN. Certificates are issued through DNS-01, so certificate issuance does not require public inbound ports.
+
+The repository contains:
+
+- a restricted `acme.sh` Compose service,
+- an Ansible role for certificate paths, renewal tooling and systemd units,
+- a Caddy role that renders and validates configuration before deployment,
+- read-only certificate mounts into Caddy,
+- local secret files with ownership and permission checks.
+
+Wildcard certificate issuance, installation and a manual Caddy reload were verified in the documented state. The systemd timer is versioned, but unattended renewal still requires an end-to-end runtime verification before it is presented as proven.
+
+## Backup and recovery
+
+Important Paperless and Vaultwarden data is backed up with encrypted Restic repositories on network storage. The documented process includes retention and non-destructive restore smoke tests into temporary directories.
+
+A successful backup job alone is not treated as proof of recoverability. Restore coverage for additional data and VM-level recovery remains planned work.
+
+## Security boundaries
+
+- Pull request code runs on GitHub-hosted runners, not inside the homelab.
+- The self-hosted runner is used only for trusted `main` and manual CD events.
+- Real inventories, `.env` files, SSH keys, API tokens and private keys stay outside Git.
+- Public files use examples or variables for environment-specific values.
+- Application state is stored outside the repository.
+- Production changes are verified through service status, logs, health checks or functional tests.
+
+The repository intentionally shows the public service domain and system roles. It does not publish credentials, private keys or internal IP addresses.
+
+## Verified status
+
+| Area | Evidence-backed status |
 |---|---|
-| Proxmox virtualization | Implemented |
-| Development VM | Implemented |
-| Operations / Ansible VM | Implemented |
-| Dedicated GitHub Actions runner VM | Implemented |
-| Docker provisioning with Ansible | Implemented |
-| Reusable Ansible roles | Implemented |
-| Git branch / PR workflow | Implemented |
-| GitHub Actions CI | Implemented |
-| YAML validation | Implemented |
-| Ansible syntax validation | Implemented |
-| Docker Compose validation | Implemented |
-| Self-hosted CD runner | Implemented |
-| GitHub → Runner → Ansible → DEV connectivity | Verified |
-| Automated application deployment through CD | Not confirmed; current workflow is connectivity-only |
-| Restic backup automation | Implemented |
-| Restore smoke tests | Verified |
-| Monitoring on DEV | Operational in documented state |
-| Node Exporter targets | DEV and Raspberry Pi verified |
-| Blackbox HTTPS checks | Eight internal services verified on 09 October 2026 |
-| Grafana dashboards | Host Overview and Service Health V3 visually checked |
-| Prometheus configuration validation | Invalid configuration rejection verified |
-| Prometheus reload after a real change | Pending verification |
-| Grafana Alerting → ntfy | Planned |
-| Dashboard provisioning | Not confirmed |
-| Kubernetes / k3s | Planned |
-| Terraform / Cloud IaC | Planned |
-
----
-
-## Current CI/CD Flow
-
-The currently verified workflow is:
-
-```text
-Developer
-    │
-    ▼
-Feature Branch
-    │
-    ▼
-Pull Request
-    │
-    ▼
-GitHub-hosted CI
-    │
-    ├── YAML validation
-    ├── Ansible syntax validation
-    └── Docker Compose validation
-    │
-    ▼
-Merge to main
-    │
-    ├──────────────► CI
-    │
-    ▼
-CD Workflow
-    │
-    ▼
-runner01
-    │
-    ├── Checkout
-    ├── Install Ansible collections
-    └── Load local inventory
-    │
-    ▼
-SSH / Ansible
-    │
-    ▼
-dev01
-    │
-    ▼
-Connectivity verified
-```
-
-The next milestone extends the final step from a connectivity test to an actual Ansible-managed deployment.
-
----
-
-## Roadmap
-
-The current implementation order is deliberately incremental.
-
-### Next
-
-- configure Grafana Alerting with ntfy for sustained service failures (approximately two minutes), then test notification and recovery,
-- confirm the V3 export against the committed dashboard and make provisioning reproducible where useful,
-- verify the Prometheus reload handler after a real valid configuration change,
-- complete the remote file-existence check from the configuration validation negative test,
-- add the real Homepage and Grafana screenshots,
-- extend the connectivity-only CD workflow with a controlled service deployment and verify the resulting state.
-
-### Later
-
-- container-level metrics with cAdvisor and monitoring of the Proxmox host,
-- monitoring retention and backup/restore coverage,
-- review obsolete Docker-network firewall rules after confirming active paths,
-- additional alerting components only where needed,
-- further backup coverage and restore testing,
-- tighter deployment controls where useful,
-- k3s/Kubernetes,
-- Terraform,
-- a small reproducible cloud environment.
-
-Large additional platforms are intentionally avoided until they solve a concrete problem or provide a clear learning objective.
-
----
-
-## Why This Project Exists
-
-This repository documents the transition from manually operated self-hosted services toward a reproducible platform workflow.
-
-The important part is therefore not the number of applications being hosted.
-
-The project is intended to demonstrate the progression from:
-
-```text
-Manual server administration
-          ↓
-Docker Compose
-          ↓
-Structured Git repository
-          ↓
-Pull Requests
-          ↓
-Configuration management with Ansible
-          ↓
-Automated CI validation
-          ↓
-Isolated Continuous Deployment
-          ↓
-Monitoring and recovery
-          ↓
-Infrastructure as Code
-```
-
-Each layer is introduced only after the previous one is understood and operationally useful.
-
-The result is a continuously evolving environment for practical DevOps and platform engineering experience rather than a static collection of configuration files.
-
----
+| Proxmox and VM separation | Visible in the supplied Proxmox snapshot from 15 October 2026 |
+| Docker and reusable Ansible roles | Present in the repository; selected roles used in the documented environment |
+| CI validation definition | Implemented; latest queried runs ended in `startup_failure` before job creation |
+| Self-hosted CD path | Connectivity previously verified; workflow remains ping-only |
+| Monitoring | Eight HTTPS services shown reachable in the 15 October 2026 Grafana snapshot |
+| Grafana Service Health | Dashboard committed and operational snapshot supplied |
+| Publicly trusted internal HTTPS | Wildcard issuance and manual installation/reload verified |
+| Automatic certificate renewal | Automation versioned; unattended end-to-end renewal still to verify |
+| Restic restore tests | Paperless and Vaultwarden smoke restores documented as successful |
+| Grafana alert delivery to ntfy | Planned |
+| Kubernetes / k3s | Not started |
 
 ## Documentation
 
-A more detailed description of the technical design and its trust boundaries is available in:
+- [Architecture and trust boundaries](docs/architecture.md)
+- [Firewall model](docs/firewall.md)
+- [Ansible automation](automation/ansible/README.md)
+- [Screenshot gallery and publication notes](docs/assets/screenshots/README.md)
 
-[docs/architecture.md](docs/architecture.md)
+The private operational knowledge base contains concrete host state and change history. Public documentation is derived from it only after values and claims have been checked for publication.
 
-Supporting documentation may describe earlier milestones; the dated current-state sections in this README distinguish today's documented runtime state from implemented repository configuration and planned work.
+## Next steps
 
-The repository intentionally contains only information suitable for publication. Concrete private infrastructure details, credentials, internal inventories and operational secrets are maintained outside the public repository.
+1. Resolve the GitHub Actions `startup_failure` and restore a verifiable CI result.
+2. Verify unattended ACME renewal, Caddy reload and failure notification end to end.
+3. Configure Grafana alert delivery through ntfy and test failure plus recovery.
+4. Confirm reproducible provisioning of the committed Grafana dashboard.
+5. Extend CD from connectivity testing to one controlled deployment with post-deployment verification.
+
+Additional platforms such as k3s and Terraform will be introduced only when they support a concrete operating or learning objective.
