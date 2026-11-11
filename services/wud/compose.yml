@@ -1,6 +1,6 @@
 services:
   wud:
-    image: getwud/wud:9.1.0
+    image: getwud/wud:9.8.0
     container_name: wud
     restart: unless-stopped
 
