@@ -60,7 +60,7 @@
       --mount type=bind,src=%s,dst=/etc/prometheus/prometheus.yml,readonly
       --mount type=bind,src=/srv/stacks/prometheus/targets,dst=/etc/prometheus/targets,readonly
       --entrypoint /bin/promtool
-      prom/prometheus:v3.14.0
+      prom/prometheus:v3.16.0
       check config /etc/prometheus/prometheus.yml
   notify: Reload Prometheus configuration
 
