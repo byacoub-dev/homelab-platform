@@ -29,6 +29,20 @@
     group: "{{ ansible_user }}"
     mode: "0644"
 
+- name: Check existing Grafana environment file
+  ansible.builtin.stat:
+    path: /srv/stacks/grafana/.env
+  register: grafana_existing_env
+  when: grafana_preserve_env | default(false) | bool
+
+- name: Require existing Grafana environment file
+  ansible.builtin.assert:
+    that:
+      - grafana_existing_env.stat.exists
+      - grafana_existing_env.stat.isreg | default(false)
+    fail_msg: "Cannot preserve Grafana environment: .env is missing."
+  when: grafana_preserve_env | default(false) | bool
+
 - name: Create Grafana environment file
   ansible.builtin.template:
     src: grafana.env.j2
@@ -36,6 +50,7 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0600"
+  when: not (grafana_preserve_env | default(false) | bool)
 
 - name: Deploy Grafana
   community.docker.docker_compose_v2:

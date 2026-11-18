@@ -1,0 +1,105 @@
+---
+- name: Inspect monitoring network
+  community.docker.docker_network_info:
+    name: monitoring
+  register: alloy_network
+
+- name: Require monitoring network
+  ansible.builtin.assert:
+    that:
+      - alloy_network.exists
+
+- name: Check Docker socket for proxy
+  ansible.builtin.stat:
+    path: /var/run/docker.sock
+  register: alloy_socket
+
+- name: Require Docker socket for proxy
+  ansible.builtin.assert:
+    that:
+      - alloy_socket.stat.exists
+      - alloy_socket.stat.issock | default(false)
+
+- name: Create Alloy stack directory
+  ansible.builtin.file:
+    path: /srv/stacks/alloy
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+
+- name: Create Alloy data directory
+  ansible.builtin.file:
+    path: /srv/appdata/alloy
+    state: directory
+    owner: "473"
+    group: "473"
+    mode: "0750"
+
+- name: Ensure pinned images are available
+  community.docker.docker_image:
+    name: "{{ item }}"
+    source: pull
+  loop:
+    - grafana/alloy:v1.22.0
+    - haproxy:3.2.26-alpine
+
+- name: Create Alloy environment file
+  ansible.builtin.copy:
+    content: |
+      ALLOY_HOST_LABEL={{ alloy_host_label }}
+      LOKI_PUSH_URL={{ alloy_loki_push_url }}
+    dest: /srv/stacks/alloy/.env
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0600"
+  register: alloy_environment
+
+- name: Validate and copy Docker proxy configuration
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../../services/alloy/docker-proxy.cfg"
+    dest: /srv/stacks/alloy/docker-proxy.cfg
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+    validate: >-
+      docker run --rm --network none --user 0:0
+      --entrypoint haproxy
+      --mount type=bind,source=%s,target=/tmp/proxy.cfg,readonly
+      haproxy:3.2.26-alpine
+      -c -f /tmp/proxy.cfg
+  register: alloy_proxy_config
+
+- name: Validate and copy Alloy configuration
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../../services/alloy/config.alloy"
+    dest: /srv/stacks/alloy/config.alloy
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+    validate: >-
+      docker run --rm --network none --user 0:0
+      --env-file /srv/stacks/alloy/.env
+      --env DOCKER_HOST=http://docker-proxy:2375
+      --mount type=bind,source=%s,target=/etc/alloy/config.alloy,readonly
+      grafana/alloy:v1.22.0
+      validate /etc/alloy/config.alloy
+  register: alloy_config
+
+- name: Copy Alloy compose file
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../../services/alloy/compose.yml"
+    dest: /srv/stacks/alloy/compose.yml
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+
+- name: Deploy Alloy and Docker proxy
+  community.docker.docker_compose_v2:
+    project_src: /srv/stacks/alloy
+    state: present
+    recreate: >-
+      {{ 'always' if
+         (alloy_config.changed or alloy_environment.changed
+          or alloy_proxy_config.changed)
+         else 'auto' }}

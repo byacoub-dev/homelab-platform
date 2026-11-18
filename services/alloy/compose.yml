@@ -1,0 +1,68 @@
+services:
+  docker-proxy:
+    image: haproxy:3.2.26-alpine
+    restart: unless-stopped
+    user: "0:0"
+    read_only: true
+
+    volumes:
+      - ./docker-proxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+    networks:
+      - docker_api
+
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  alloy:
+    image: grafana/alloy:v1.22.0
+    container_name: alloy
+    restart: unless-stopped
+    user: "473:473"
+
+    depends_on:
+      - docker-proxy
+
+    command:
+      - run
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+
+    environment:
+      DOCKER_HOST: http://docker-proxy:2375
+      ALLOY_HOST_LABEL: "${ALLOY_HOST_LABEL:?Set ALLOY_HOST_LABEL}"
+      LOKI_PUSH_URL: "${LOKI_PUSH_URL:?Set LOKI_PUSH_URL}"
+
+    volumes:
+      - ./config.alloy:/etc/alloy/config.alloy:ro
+      - /srv/appdata/alloy:/var/lib/alloy/data
+
+    networks:
+      - docker_api
+      - monitoring
+
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  docker_api:
+    internal: true
+  monitoring:
+    external: true

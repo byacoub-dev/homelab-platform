@@ -1,0 +1,42 @@
+logging {
+  level = "info"
+}
+
+discovery.docker "containers" {
+  host = sys.env("DOCKER_HOST")
+}
+
+discovery.relabel "grafana" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(grafana|wud|prometheus|blackbox-exporter|node-exporter)"
+    action        = "keep"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+    replacement   = "$1"
+  }
+
+  rule {
+    target_label = "host"
+    replacement  = sys.env("ALLOY_HOST_LABEL")
+  }
+}
+
+loki.source.docker "grafana" {
+  host       = sys.env("DOCKER_HOST")
+  targets    = discovery.relabel.grafana.output
+  labels     = {"job" = "docker"}
+  forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    url = sys.env("LOKI_PUSH_URL")
+  }
+}

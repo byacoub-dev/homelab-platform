@@ -1,0 +1,26 @@
+services:
+  loki:
+    image: grafana/loki:3.7.10
+    container_name: loki
+    restart: unless-stopped
+    user: "10001:10001"
+    command:
+      - -config.file=/etc/loki/config.yml
+
+    volumes:
+      - ./config.yml:/etc/loki/config.yml:ro
+      - /srv/appdata/loki:/loki
+
+    networks:
+      - logging
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  logging:
+    external: true
+    name: "${LOKI_DOCKER_NETWORK:?Set LOKI_DOCKER_NETWORK}"
