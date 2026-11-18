@@ -4,6 +4,10 @@ services:
     container_name: grafana
     restart: unless-stopped
 
+    networks:
+      - default
+      - monitoring
+
     volumes:
       - /srv/appdata/grafana:/var/lib/grafana
 
@@ -13,3 +17,7 @@ services:
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+
+networks:
+  monitoring:
+    external: true

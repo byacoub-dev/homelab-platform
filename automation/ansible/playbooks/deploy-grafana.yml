@@ -13,6 +13,7 @@
         that:
           - grafana_admin_password | length > 0
         fail_msg: "GRAFANA_ADMIN_PASSWORD must be set in the environment."
+      when: not (grafana_preserve_env | default(false) | bool)
 
   roles:
     - grafana

@@ -1,0 +1,77 @@
+---
+- name: Require Loki Docker network
+  ansible.builtin.assert:
+    that:
+      - loki_docker_network is defined
+      - loki_docker_network | default('') | length > 0
+    fail_msg: "Set loki_docker_network to an existing Docker network."
+
+- name: Inspect Loki Docker network
+  community.docker.docker_network_info:
+    name: "{{ loki_docker_network }}"
+  register: loki_network
+
+- name: Ensure Loki Docker network exists
+  ansible.builtin.assert:
+    that:
+      - loki_network.exists
+    fail_msg: "The selected Docker network does not exist."
+
+- name: Create Loki stack directory
+  ansible.builtin.file:
+    path: /srv/stacks/loki
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+
+- name: Create Loki data directory
+  ansible.builtin.file:
+    path: /srv/appdata/loki
+    state: directory
+    owner: "10001"
+    group: "10001"
+    mode: "0750"
+
+- name: Ensure pinned Loki image is available
+  community.docker.docker_image:
+    name: grafana/loki:3.7.10
+    source: pull
+
+- name: Validate and copy Loki configuration
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../../services/loki/config.yml"
+    dest: /srv/stacks/loki/config.yml
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+    validate: >-
+      docker run --rm --network none --user 0:0
+      --mount type=bind,source=%s,target=/etc/loki/config.yml,readonly
+      grafana/loki:3.7.10
+      -config.file=/etc/loki/config.yml
+      -verify-config=true
+  register: loki_config
+
+- name: Copy Loki compose file
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../../services/loki/compose.yml"
+    dest: /srv/stacks/loki/compose.yml
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+
+- name: Create Loki environment file
+  ansible.builtin.copy:
+    content: |
+      LOKI_DOCKER_NETWORK={{ loki_docker_network }}
+    dest: /srv/stacks/loki/.env
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0600"
+
+- name: Deploy Loki
+  community.docker.docker_compose_v2:
+    project_src: /srv/stacks/loki
+    state: present
+    recreate: "{{ 'always' if loki_config.changed else 'auto' }}"

@@ -1,0 +1,3 @@
+---
+alloy_host_label: "{{ inventory_hostname }}"
+alloy_loki_push_url: "http://loki:3100/loki/api/v1/push"

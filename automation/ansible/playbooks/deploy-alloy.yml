@@ -1,0 +1,7 @@
+---
+- name: Deploy Alloy to development hosts
+  hosts: development
+  become: true
+
+  roles:
+    - alloy
